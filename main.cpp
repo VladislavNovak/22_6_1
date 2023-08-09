@@ -162,6 +162,113 @@ int retrieveKeysByValueExtended(vector<string> &out, const string &desiredValue,
     return itemsAmount;
 }
 
+bool abortIfDataEmpty(opType mode, const std::map<string, string> &phonebook) {
+    vector<string> operationNames = { "изменением", "удалением", "извлечением" };
+    const char* operation = operationNames[static_cast<int>(mode)].c_str();
+
+    if (!phonebook.empty()) {
+        cout << "Перед " << operation << " показать весь список?" << endl;
+        if (selectFromList({ "yes", "no" }) == 0) displayEntries(phonebook);
+        return false;
+    } else {
+        cout << "Телефонный справочник пока пуст" << endl;
+        return true;
+    }
+}
+
+void menuAdd(std::map<string, string> &phonebook) {
+    while (true) {
+        std::pair<string, string> newEntry;
+
+        newEntry.first = getUserLineString("Введите телефон (простая строка)");
+        newEntry.second = getUserLineString("Введите фамилию абонента");
+
+        addToEntriesExtended(newEntry, phonebook);
+
+        cout << "Закончили добавление?" << endl;
+        if (selectFromList({ "yes", "no" }) == 0) break;
+    }
+}
+
+void menuRemove(std::map<string, string> &phonebook) {
+    while (true) {
+        // Вообще исключаем введение неверных ключей
+        vector<string> keys;
+        keys.reserve(phonebook.size());
+        for (const auto &[key, value] : phonebook) keys.emplace_back(key);
+        cout << "Введите один из телефонов, который собираетесь удалить:" << endl;
+        string selectedKey = keys[selectFromList(keys)];
+
+        removeFromEntriesExtended(selectedKey, phonebook);
+
+        cout << "Закончили удаление?" << endl;
+        if (selectFromList({ "yes", "no" }) == 0) break;
+    }
+}
+
+void menuRetrieve(std::map<string, string> &phonebook) {
+    while (true) {
+        vector<string> retrieveCommands = { "by_phone", "by_name" };
+        vector<string> retrieveCommandsRu = {
+                "фамилию абонента если ввести его телефон",
+                "список всех телефонов по фамилии абонента" };
+
+        cout << "Получить данные возможно одним из способов: ";
+        outputListToStream(std::cout, retrieveCommandsRu);
+        auto retrieveCommandIndex = selectFromList(retrieveCommands);
+
+        if (retrieveCommands[retrieveCommandIndex] == "by_phone") {
+            cout << "MENU/RETRIEVE BY PHONE:" << endl;
+            // Вообще исключаем введение неверных ключей
+            vector<string> keys;
+            keys.reserve(phonebook.size());
+            for (const auto &[key, value] : phonebook) keys.emplace_back(key);
+            cout << "Введите один из телефонов, который собираетесь получить:" << endl;
+            string selectedKey = keys[selectFromList(keys)];
+
+            string valueByKey;
+            retrieveValueByKeyExtended(valueByKey, selectedKey, phonebook);
+
+            cout << "Результат извлечения по телефону " << selectedKey << ": " << valueByKey << endl;
+
+            cout << "Закончили извлечение?" << endl;
+            if (selectFromList({ "yes", "no" }) == 0) break;
+        } else {
+            cout << "MENU/RETRIEVE PHONES BY NAME:" << endl;
+            vector<string> listOfPhones;
+            string subscriber = getUserLineString("Введите фамилию абонента");
+            int foundPhonesAmount = retrieveKeysByValueExtended(listOfPhones, subscriber, phonebook);
+
+            if (foundPhonesAmount > 0) {
+                cout << "По ключу " << subscriber << " найдено " << foundPhonesAmount << " записей:" << endl;
+                outputListToStream(std::cout, listOfPhones);
+            }
+
+            cout << "Закончили извлечение?" << endl;
+            if (selectFromList({ "yes", "no" }) == 0) break;
+        }
+    }
+}
+
+void menuEdit(std::map<string, string> &phonebook) {
+    while (true) {
+        std::pair<string, string> newEntry;
+
+        // Вообще исключаем введение неверных ключей
+        vector<string> keys;
+        keys.reserve(phonebook.size());
+        for (const auto &[key, value] : phonebook) keys.emplace_back(key);
+        cout << "Введите один из телефонов, который собираетесь редактировать:" << endl;
+        newEntry.first = keys[selectFromList(keys)];
+        newEntry.second = getUserLineString("Введите новую фамилию абонента");
+
+        changeEntriesExtended(newEntry, phonebook);
+
+        cout << "Закончили редактирование?" << endl;
+        if (selectFromList({ "yes", "no" }) == 0) break;
+    }
+}
+
 int main() {
     SetConsoleCP(65001);
     SetConsoleOutputCP(65001);
@@ -169,100 +276,46 @@ int main() {
     std::map<string, string> phonebook;
 
     vector<string> commands = { "add", "edit", "remove", "retrieve", "about", "exit"};
-    vector<string> commandsRu = { "добавить", "изменить", "удалить", "получить по ключу", "инфо", "выход"};
+    vector<string> commandsRu = {
+            "добавить",
+            "изменить",
+            "удалить",
+            "получить (владельца или список телефонов владельца)",
+            "инфо",
+            "выход"};
 
     while(true) {
-        cout << "-----MENU-----" << endl;
+        cout << "MENU:" << endl;
         cout << "С записями возможны операции: ";
         outputListToStream(std::cout, commandsRu);
         auto index = selectFromList(commands);
 
         if (commands[index] == "add") {
-            if (!phonebook.empty()) {
-                cout << "Перед добавлением показать весь список?" << endl;
-                if (selectFromList({ "yes", "no" }) == 0) displayEntries(phonebook);
-            } else {
-                cout << "Телефонный справочник пока пуст. Сейчас добавим новую запись." << endl;
-            }
-
-            while (true) {
-                std::pair<string, string> newEntry;
-
-                newEntry.first = getUserLineString("Введите телефон (простая строка)");
-                newEntry.second = getUserLineString("Введите фамилию владельца");
-
-                addToEntriesExtended(newEntry, phonebook);
-
-                cout << "Закончили добавление?" << endl;
-                if (selectFromList({ "yes", "no" }) == 0) break;
-            }
+            cout << "MENU/ADD:" << endl;
+            menuAdd(phonebook);
         }
         else if (commands[index] == "edit") {
-            if (!phonebook.empty()) {
-                cout << "Перед добавлением показать весь список?" << endl;
-                if (selectFromList({ "yes", "no" }) == 0) displayEntries(phonebook);
-            } else {
-                cout << "Телефонный справочник пока пуст" << endl;
-                continue;
-            }
-
-            while (true) {
-                std::pair<string, string> newEntry;
-
-                // Вообще исключаем введение неверных ключей
-                vector<string> keys;
-                keys.reserve(phonebook.size());
-                for (const auto &[key, value] : phonebook) keys.emplace_back(key);
-                cout << "Введите один из телефонов, который собираетесь редактировать:" << endl;
-                newEntry.first = keys[selectFromList(keys)];
-                newEntry.second = getUserLineString("Введите новую фамилию владельца");
-
-                changeEntriesExtended(newEntry, phonebook);
-
-                cout << "Закончили редактирование?" << endl;
-                if (selectFromList({ "yes", "no" }) == 0) break;
-            }
+            cout << "MENU/EDIT:" << endl;
+            if (abortIfDataEmpty(opType::edit, phonebook)) continue;
+            menuEdit(phonebook);
         }
         else if (commands[index] == "remove") {
-
+            cout << "MENU/REMOVE:" << endl;
+            if (abortIfDataEmpty(opType::remove, phonebook)) continue;
+            menuRemove(phonebook);
         }
         else if (commands[index] == "retrieve") {
-            // добавить выбор by key | by value
+            cout << "MENU/RETRIEVE:" << endl;
+            if (abortIfDataEmpty(opType::retrieve, phonebook)) continue;
+            menuRetrieve(phonebook);
         }
         else if (commands[index] == "about") {
-            displayEntries(phonebook);
+            if (!phonebook.empty()) displayEntries(phonebook);
+            else cout << "Телефонный справочник пока пуст" << endl;
         }
         else if (commands[index] == "exit") {
             cout << "Программа завершает свою работу. До новых встреч" << endl;
             break;
         }
     }
-
-
-    // removeFromEntriesExtended( "12-18", phonebook);
-    // removeFromEntriesExtended("14-18", phonebook);
-    //
-    // displayEntries(phonebook);
-    //
-    // string resultOfRetrieve;
-    // bool isSuccess = retrieveValueByKeyExtended(resultOfRetrieve, "12-12", phonebook);
-    // if (isSuccess) cout << "Результат извлечения по ключу " << "(12-12): " << resultOfRetrieve << endl;
-    //
-    // isSuccess = retrieveValueByKeyExtended(resultOfRetrieve, "20-20", phonebook);
-    // if (isSuccess) cout << "Результат извлечения по ключу " << "(20-20): " << resultOfRetrieve << endl;
-    //
-    // vector<string> listOfKeys;
-    // int keysCount = retrieveKeysByValueExtended(listOfKeys, "Ivanov", phonebook);
-    // if (keysCount) {
-    //     cout << "По ключу " << "Ivanov" << " извлечено " << keysCount << " записей:" << endl;
-    //     for (const auto &item : listOfKeys) cout << item << " ";
-    //     cout << endl;
-    // }
-    //
-    // keysCount = retrieveKeysByValueExtended(listOfKeys, "Fedorov", phonebook);
-    // if (keysCount) {
-    //     cout << "По ключу " << "Fedorov" << " извлечено " << keysCount << " записей:" << endl;
-    //     for (const auto &item : listOfKeys) cout << item << " ";
-    //     cout << endl;
-    // }
 }
