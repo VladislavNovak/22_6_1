@@ -56,38 +56,42 @@ int selectFromList(std::vector<std::string> const &list) {
     }
 }
 
-// Изменить одну запись. Возвращает false, если записи по указанному ключу не обнаружено
-bool changeEntries(const std::pair<string, string> &newEntry, std::map<string, string> &target) {
-    if (target.count(newEntry.first) == 0) return false;
+// Добавить одну запись. Возвращает false, если записи по указанному ключу не обнаружено
+template<typename F, typename S>
+bool addEntryToMap(const std::pair<F, S> &entry, std::map<F, S> &target) {
+    if (target.count(entry.first) == 1) return false;
 
-    auto it = target.find(newEntry.first);
-    it->second = newEntry.second;
+    target.insert(entry);
 
     return true;
 }
 
-// Добавить одну запись. Возвращает false, если записи по указанному ключу не обнаружено
-bool addToEntries(const std::pair<string, string> &newEntry, std::map<string, string> &target) {
-    if (target.count(newEntry.first) == 1) return false;
+// Изменить одну запись. Возвращает false, если записи по указанному ключу не обнаружено
+template<typename F, typename S>
+bool changeEntryInMap(const std::pair<F, S> &entry, std::map<F, S> &target) {
+    if (target.count(entry.first) == 0) return false;
 
-    target.insert(newEntry);
+    auto it = target.find(entry.first);
+    it->second = entry.second;
 
     return true;
 }
 
 // Удалить одну запись. Возвращает false, если записи по указанному ключу не обнаружено
-bool deleteFromEntries(const string &key, std::map<string, string> &out) {
-    const auto it = out.find(key);
+template<typename F, typename S>
+bool removeEntryFromMap(const F &key, std::map<F, S> &target) {
+    const auto it = target.find(key);
 
-    if (it == out.end()) return false;
+    if (it == target.end()) return false;
 
-    out.erase(it);
+    target.erase(it);
 
     return true;
 }
 
 // Вернуть одну запись. Возвращает false, если записи по указанному ключу не обнаружено
-bool retrieveValueByKey(string &target, const string &key, const std::map<string, string> &source) {
+template<typename F, typename S>
+bool retrieveMapValueByKey(S &target, const F &key, const std::map<F, S> &source) {
     const auto it = source.find(key);
 
     if (it == source.end()) return false;
@@ -98,13 +102,15 @@ bool retrieveValueByKey(string &target, const string &key, const std::map<string
 }
 
 // Вернуть список значений по запрашиваемому значение. Возвращает количество обнаруженных совпадений
-int retrieveKeysByValue(vector<string> &target, const string &desiredValue, const std::map<string, string> &source) {
+template<typename F, typename S>
+int retrieveMapKeysByValue(vector<F> &collectionOfKeys, const S &desiredValue, const std::map<F, S> &source) {
     int found = 0;
-    for (const auto &[key, value] : source)
+    for (const auto &[key, value] : source) {
         if (value == desiredValue) {
-            target.emplace_back(key);
+            collectionOfKeys.emplace_back(key);
             ++found;
         }
+    }
 
     return found;
 }
@@ -116,10 +122,10 @@ void displayEntries(const std::map<string, string> &source) {
 }
 
 // В зависимости от операции выводит на дисплей результат
-void operationReport(opType mode, bool status, const string &keyword, int itemsAmount = 0) {
+void printLog(opType mode, bool status, const string &keyword, int itemsAmount = 0) {
     vector<string> operationNames = { "Добавление", "Изменение", "Удаление", "Извлечение" };
     const char* operation = operationNames[static_cast<int>(mode)].c_str();
-    const char* msg = "%s по ключу %s %s";
+    const char* msg = "LOG: %s по ключу %s %s";
     const char* onSuccess = "прошло успешно.\n";
     string onSuccessExtended = "прошло успешно. Количество обработанных записей: " + std::to_string(itemsAmount) + "\n";
     vector<string> causes = { "такая запись уже существует", "такой записи не существует"};
@@ -132,38 +138,44 @@ void operationReport(opType mode, bool status, const string &keyword, int itemsA
     else printf(msg, operation, keyword.c_str(), onFailure.c_str());
 }
 
-bool addToEntriesExtended(const std::pair<string, string> &newEntry, std::map<string, string> &out) {
-    auto status = addToEntries(newEntry, out);
-    operationReport(opType::add, status, newEntry.first);
+// Функции Extended аналогичны базовым прототипам, но имеют ещё логирование
+template<typename F, typename S>
+bool addEntryToMapExtend(const std::pair<F, S> &entry, std::map<F, S> &target) {
+    auto status = addEntryToMap(entry, target);
+    printLog(opType::add, status, entry.first);
     return status;
 }
 
-bool changeEntriesExtended(const std::pair<string, string> &newEntry, std::map<string, string> &out) {
-    auto status = changeEntries(newEntry, out);
-    operationReport(opType::edit, status, newEntry.first);
+template<typename F, typename S>
+bool changeEntryInMapExtended(const std::pair<F, S> &entry, std::map<F, S> &target) {
+    auto status = changeEntryInMap(entry, target);
+    printLog(opType::edit, status, entry.first);
     return status;
 }
 
-bool removeFromEntriesExtended(const string &key, std::map<string, string> &out) {
-    auto status = deleteFromEntries(key, out);
-    operationReport(opType::remove, status, key);
+template<typename F, typename S>
+bool removeEntryFromMapExtended(const F &key, std::map<F, S> &target) {
+    auto status = removeEntryFromMap(key, target);
+    printLog(opType::remove, status, key);
     return status;
 }
 
-bool retrieveValueByKeyExtended(string &out, const string &key, const std::map<string, string> &from) {
-    auto status = retrieveValueByKey(out, key, from);
-    operationReport(opType::retrieve, status, key);
+template<typename F, typename S>
+bool retrieveMapValueByKeyExtended(S &target, const F &key, const std::map<F, S> &source) {
+    auto status = retrieveMapValueByKey(target, key, source);
+    printLog(opType::retrieve, status, key);
     return status;
 }
 
-int retrieveKeysByValueExtended(vector<string> &out, const string &desiredValue, const std::map<string, string> &from) {
-    int itemsAmount = retrieveKeysByValue(out, desiredValue, from);
-    operationReport(opType::retrieve, itemsAmount > 0, desiredValue, itemsAmount);
+template<typename F, typename S>
+int retrieveMapKeysByValueExtended(vector<F> &collectionOfKeys, const S &desiredValue, const std::map<F, S> &source) {
+    int itemsAmount = retrieveMapKeysByValue(collectionOfKeys, desiredValue, source);
+    printLog(opType::retrieve, itemsAmount > 0, desiredValue, itemsAmount);
     return itemsAmount;
 }
 
 bool abortIfDataEmpty(opType mode, const std::map<string, string> &phonebook) {
-    vector<string> operationNames = { "изменением", "удалением", "извлечением" };
+    vector<string> operationNames = { "добавлением", "изменением", "удалением", "извлечением" };
     const char* operation = operationNames[static_cast<int>(mode)].c_str();
 
     if (!phonebook.empty()) {
@@ -183,7 +195,7 @@ void menuAdd(std::map<string, string> &phonebook) {
         newEntry.first = getUserLineString("Введите телефон (простая строка)");
         newEntry.second = getUserLineString("Введите фамилию абонента");
 
-        addToEntriesExtended(newEntry, phonebook);
+        addEntryToMapExtend(newEntry, phonebook);
 
         cout << "Закончили добавление?" << endl;
         if (selectFromList({ "yes", "no" }) == 0) break;
@@ -199,7 +211,7 @@ void menuRemove(std::map<string, string> &phonebook) {
         cout << "Введите один из телефонов, который собираетесь удалить:" << endl;
         string selectedKey = keys[selectFromList(keys)];
 
-        removeFromEntriesExtended(selectedKey, phonebook);
+        removeEntryFromMapExtended(selectedKey, phonebook);
 
         cout << "Закончили удаление?" << endl;
         if (selectFromList({ "yes", "no" }) == 0) break;
@@ -227,7 +239,7 @@ void menuRetrieve(std::map<string, string> &phonebook) {
             string selectedKey = keys[selectFromList(keys)];
 
             string valueByKey;
-            retrieveValueByKeyExtended(valueByKey, selectedKey, phonebook);
+            retrieveMapValueByKeyExtended(valueByKey, selectedKey, phonebook);
 
             cout << "Результат извлечения по телефону " << selectedKey << ": " << valueByKey << endl;
 
@@ -237,7 +249,7 @@ void menuRetrieve(std::map<string, string> &phonebook) {
             cout << "MENU/RETRIEVE PHONES BY NAME:" << endl;
             vector<string> listOfPhones;
             string subscriber = getUserLineString("Введите фамилию абонента");
-            int foundPhonesAmount = retrieveKeysByValueExtended(listOfPhones, subscriber, phonebook);
+            int foundPhonesAmount = retrieveMapKeysByValueExtended(listOfPhones, subscriber, phonebook);
 
             if (foundPhonesAmount > 0) {
                 cout << "По ключу " << subscriber << " найдено " << foundPhonesAmount << " записей:" << endl;
@@ -262,7 +274,7 @@ void menuEdit(std::map<string, string> &phonebook) {
         newEntry.first = keys[selectFromList(keys)];
         newEntry.second = getUserLineString("Введите новую фамилию абонента");
 
-        changeEntriesExtended(newEntry, phonebook);
+        changeEntryInMapExtended(newEntry, phonebook);
 
         cout << "Закончили редактирование?" << endl;
         if (selectFromList({ "yes", "no" }) == 0) break;
