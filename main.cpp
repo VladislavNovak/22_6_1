@@ -124,18 +124,18 @@ void displayEntries(const std::map<string, string> &source) {
 // В зависимости от операции выводит на дисплей результат
 void printLog(opType mode, bool status, const string &keyword, int itemsAmount = 0) {
     vector<string> operationNames = { "Добавление", "Изменение", "Удаление", "Извлечение" };
-    const char* operation = operationNames[static_cast<int>(mode)].c_str();
-    const char* msg = "LOG: %s по ключу %s %s";
+    string operation = operationNames[static_cast<int>(mode)];
+    const char* msg = "LOG:                  %s по ключу %s %s";
     const char* onSuccess = "прошло успешно.\n";
     string onSuccessExtended = "прошло успешно. Количество обработанных записей: " + std::to_string(itemsAmount) + "\n";
     vector<string> causes = { "такая запись уже существует", "такой записи не существует"};
     string onFailure = "не удалось, т.к. " + ((mode == opType::add) ? causes[0] : causes[1]) + "\n";
 
     if (status) {
-        if (itemsAmount == 0) printf(msg, operation, keyword.c_str(), onSuccess);
-        else printf(msg, operation, keyword.c_str(), onSuccessExtended.c_str());
+        if (itemsAmount == 0) printf(msg, operation.c_str(), keyword.c_str(), onSuccess);
+        else printf(msg, operation.c_str(), keyword.c_str(), onSuccessExtended.c_str());
     }
-    else printf(msg, operation, keyword.c_str(), onFailure.c_str());
+    else printf(msg, operation.c_str(), keyword.c_str(), onFailure.c_str());
 }
 
 // Функции Extended аналогичны базовым прототипам, но имеют ещё логирование
