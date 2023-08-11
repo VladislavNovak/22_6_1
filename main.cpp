@@ -2,6 +2,7 @@
 #include <iostream>
 #include <map>
 #include <vector>
+#include <algorithm>
 
 using std::cout;
 using std::endl;
@@ -35,10 +36,31 @@ std::string getUserLineString(const std::string &msg) {
     }
 }
 
-// modified
+template<typename T>
+int findKeyIndexInVector(const T &key, std::vector<T> const &list) {
+    const int NOT_FOUND = -1;
+    auto it = std::find_if(list.cbegin(), list.cend(), [key](const T &i){ return i == key; });
+
+    if (it != list.cend()) {
+        return (int)std::distance(list.cbegin(), it);
+    }
+
+    return NOT_FOUND;
+}
+
+template<typename T>
+bool removeKeyFromVector(const T &key, vector<T> &list) {
+    auto foundIndex = findKeyIndexInVector(key, list);
+    if (foundIndex == -1) return false;
+
+    list.erase(list.begin() + foundIndex);
+
+    return true;
+}
+
+// simplified
 void outputListToStream(std::ostream &out, std::vector<std::string> const &list, const std::string &delim = ",") {
-    for (int i = 0; i < list.size(); ++i) out << list[i] << (i != list.size() - 1 ? delim : "");
-    out << std::endl;
+    for (int i = 0; i < list.size(); ++i) out << list[i] << (i != list.size() - 1 ? delim : "\n");
 }
 
 int selectFromList(std::vector<std::string> const &list) {
@@ -56,6 +78,15 @@ int selectFromList(std::vector<std::string> const &list) {
     }
 }
 
+template<typename F, typename S>
+vector<F> getMapKeys(const std::map<F, S> &source) {
+    vector<F> keys;
+    keys.reserve(source.size());
+    for (const auto &[key, _] : source) keys.emplace_back(key);
+
+    return keys;
+}
+
 // Добавить одну запись. Возвращает false, если записи по указанному ключу не обнаружено
 template<typename F, typename S>
 bool addEntryToMap(const std::pair<F, S> &entry, std::map<F, S> &target) {
@@ -66,15 +97,17 @@ bool addEntryToMap(const std::pair<F, S> &entry, std::map<F, S> &target) {
     return true;
 }
 
-// Изменить одну запись. Возвращает false, если записи по указанному ключу не обнаружено
 template<typename F, typename S>
-bool changeEntryInMap(const std::pair<F, S> &entry, std::map<F, S> &target) {
-    if (target.count(entry.first) == 0) return false;
-
-    auto it = target.find(entry.first);
-    it->second = entry.second;
-
-    return true;
+void addEntryToComplexMap(const std::pair<F, S> &entry, std::map<S, vector<F>> &target) {
+    // Нашли запись по фамилии (entry.second)
+    auto it = target.find(entry.second);
+    // Если записи пока нет - добавляем новую запись из фамилии (entry.second) и телефона в vector {entry.first}
+    if (it == target.end()) {
+        vector<S> values = { entry.first };
+        target.insert(std::make_pair(entry.second, values));
+    }
+    // Если же запись есть - добавляем в vector новый телефон
+    else it->second.emplace_back(entry.first);
 }
 
 // Удалить одну запись. Возвращает false, если записи по указанному ключу не обнаружено
@@ -87,6 +120,16 @@ bool removeEntryFromMap(const F &key, std::map<F, S> &target) {
     target.erase(it);
 
     return true;
+}
+
+template<typename F, typename S>
+void removeEntryFromComplexMap(const std::pair<F, S> &entry, std::map<S, vector<F>> &target) {
+    // Нашли запись по фамилии (entry.second)
+    auto it = target.find(entry.second);
+    // Если массив target.values имеет более одного значения, удаляем из него значение по ключу
+    if (it->second.size() > 1) removeKeyFromVector(entry.first, it->second);
+    // В противном случае (если в target.values) это одно значение и всю запись из target можно полностью удалить
+    else target.erase(it);
 }
 
 // Вернуть одну запись. Возвращает false, если записи по указанному ключу не обнаружено
@@ -103,22 +146,46 @@ bool retrieveMapValueByKey(S &target, const F &key, const std::map<F, S> &source
 
 // Вернуть список значений по запрашиваемому значение. Возвращает количество обнаруженных совпадений
 template<typename F, typename S>
-int retrieveMapKeysByValue(vector<F> &collectionOfKeys, const S &desiredValue, const std::map<F, S> &source) {
-    int found = 0;
-    for (const auto &[key, value] : source) {
-        if (value == desiredValue) {
-            collectionOfKeys.emplace_back(key);
-            ++found;
-        }
-    }
+int retrieveComplexMapValueByKey(vector<F> &target, const S &key, const std::map<S, vector<F>> &source) {
+    int amount = 0;
+    auto it = source.find(key);
 
-    return found;
+    if (it == source.end()) return amount;
+
+    target = it->second;
+
+    return target.size();
+}
+
+// Изменить одну запись. Возвращает false, если записи по указанному ключу не обнаружено
+template<typename F, typename S>
+bool changeEntryInMap(const std::pair<F, S> &entry, std::map<F, S> &target) {
+    if (target.count(entry.first) == 0) return false;
+
+    auto it = target.find(entry.first);
+    it->second = entry.second;
+
+    return true;
+}
+
+template<typename F, typename S>
+void changeEntryInComplexMap(const std::pair<F, S> &oldEntry, const std::pair<F, S> &newEntry, std::map<S, vector<F>> &target) {
+    removeEntryFromComplexMap(oldEntry, target);
+    addEntryToComplexMap(newEntry, target);
 }
 
 // Выводит отчет по записям
-void displayEntries(const std::map<string, string> &source) {
-    cout << "Отчет:" << endl;
+void displayMap(const std::map<string, string> &source) {
+    cout << "Отчет (телефон: абонент) :" << endl;
     for (const auto &[key, value] : source) cout << key << ": " << value << endl;
+}
+
+void displayComplexMap(const std::map<string, vector<string>> &source) {
+    cout << "Отчет (абонент: список телефонов) :" << endl;
+    for (const auto &[key, values] : source) {
+        cout << key << ": ";
+        outputListToStream(std::cout, values);
+    }
 }
 
 // В зависимости от операции выводит на дисплей результат
@@ -168,19 +235,22 @@ bool retrieveMapValueByKeyExtended(S &target, const F &key, const std::map<F, S>
 }
 
 template<typename F, typename S>
-int retrieveMapKeysByValueExtended(vector<F> &collectionOfKeys, const S &desiredValue, const std::map<F, S> &source) {
-    int itemsAmount = retrieveMapKeysByValue(collectionOfKeys, desiredValue, source);
-    printLog(opType::retrieve, itemsAmount > 0, desiredValue, itemsAmount);
+int retrieveComplexMapValueByKeyExtended(vector<F> &target, const S &key, const std::map<S, vector<F>> &source) {
+    int itemsAmount = retrieveComplexMapValueByKey(target, key, source);
+    printLog(opType::retrieve, itemsAmount > 0, key, itemsAmount);
     return itemsAmount;
 }
 
-bool abortIfDataEmpty(opType mode, const std::map<string, string> &phonebook) {
+bool abortIfDataEmpty(opType mode, const std::map<string, string> &phonebook, const std::map<string, vector<string>> &notebook) {
     vector<string> operationNames = { "добавлением", "изменением", "удалением", "извлечением" };
     const char* operation = operationNames[static_cast<int>(mode)].c_str();
 
     if (!phonebook.empty()) {
         cout << "Перед " << operation << " показать весь список?" << endl;
-        if (selectFromList({ "yes", "no" }) == 0) displayEntries(phonebook);
+        if (selectFromList({ "yes", "no" }) == 0) {
+            displayMap(phonebook);
+            displayComplexMap(notebook);
+        }
         return false;
     } else {
         cout << "Телефонный справочник пока пуст" << endl;
@@ -188,37 +258,44 @@ bool abortIfDataEmpty(opType mode, const std::map<string, string> &phonebook) {
     }
 }
 
-void menuAdd(std::map<string, string> &phonebook) {
+void menuAdd(std::map<string, string> &phonebook, std::map<string, vector<string>> &notebook) {
     while (true) {
-        std::pair<string, string> newEntry;
+        string selectedPhone = getUserLineString("Введите телефон (простая строка)");
+        string newName = getUserLineString("Введите фамилию абонента");
+        std::pair<string, string> newEntry(selectedPhone, newName);
 
-        newEntry.first = getUserLineString("Введите телефон (простая строка)");
-        newEntry.second = getUserLineString("Введите фамилию абонента");
-
-        addEntryToMapExtend(newEntry, phonebook);
+        bool isSuccess = addEntryToMapExtend(newEntry, phonebook);
+        // Если запись добавилась, вносим изменения в параллельный список
+        if (isSuccess) addEntryToComplexMap(newEntry, notebook);
 
         cout << "Закончили добавление?" << endl;
         if (selectFromList({ "yes", "no" }) == 0) break;
     }
 }
 
-void menuRemove(std::map<string, string> &phonebook) {
+void menuRemove(std::map<string, string> &phonebook, std::map<string, vector<string>> &notebook) {
     while (true) {
         // Вообще исключаем введение неверных ключей
-        vector<string> keys;
-        keys.reserve(phonebook.size());
-        for (const auto &[key, value] : phonebook) keys.emplace_back(key);
+        vector<string> keys = getMapKeys(phonebook);
         cout << "Введите один из телефонов, который собираетесь удалить:" << endl;
-        string selectedKey = keys[selectFromList(keys)];
+        string selectedPhone = keys[selectFromList(keys)];
 
-        removeEntryFromMapExtended(selectedKey, phonebook);
+        string oldName;
+        // Извлекаем и сохраняем старое значение
+        bool isRetrieveSuccessfully = retrieveMapValueByKeyExtended(oldName, selectedPhone, phonebook);
+
+        bool isRemoveSuccess = removeEntryFromMapExtended(selectedPhone, phonebook);
+        if (isRemoveSuccess && isRetrieveSuccessfully) {
+            std::pair<string, string> oldEntry(selectedPhone, oldName);
+            removeEntryFromComplexMap(oldEntry, notebook);
+        }
 
         cout << "Закончили удаление?" << endl;
         if (selectFromList({ "yes", "no" }) == 0) break;
     }
 }
 
-void menuRetrieve(std::map<string, string> &phonebook) {
+void menuRetrieve(std::map<string, string> &phonebook, std::map<string, vector<string>> &notebook) {
     while (true) {
         vector<string> retrieveCommands = { "by_phone", "by_name" };
         vector<string> retrieveCommandsRu = {
@@ -230,26 +307,24 @@ void menuRetrieve(std::map<string, string> &phonebook) {
         auto retrieveCommandIndex = selectFromList(retrieveCommands);
 
         if (retrieveCommands[retrieveCommandIndex] == "by_phone") {
-            cout << "MENU/RETRIEVE BY PHONE:" << endl;
+            cout << "MENU/RETRIEVE/BY PHONE:" << endl;
             // Вообще исключаем введение неверных ключей
-            vector<string> keys;
-            keys.reserve(phonebook.size());
-            for (const auto &[key, value] : phonebook) keys.emplace_back(key);
+            vector<string> keys = getMapKeys(phonebook);
             cout << "Введите один из телефонов, который собираетесь получить:" << endl;
             string selectedKey = keys[selectFromList(keys)];
 
-            string valueByKey;
-            retrieveMapValueByKeyExtended(valueByKey, selectedKey, phonebook);
+            string retrievedValue;
+            retrieveMapValueByKeyExtended(retrievedValue, selectedKey, phonebook);
 
-            cout << "Результат извлечения по телефону " << selectedKey << ": " << valueByKey << endl;
+            cout << "Результат извлечения по телефону " << selectedKey << ": " << retrievedValue << endl;
 
             cout << "Закончили извлечение?" << endl;
             if (selectFromList({ "yes", "no" }) == 0) break;
         } else {
-            cout << "MENU/RETRIEVE PHONES BY NAME:" << endl;
+            cout << "MENU/RETRIEVE/PHONES BY NAME:" << endl;
             vector<string> listOfPhones;
             string subscriber = getUserLineString("Введите фамилию абонента");
-            int foundPhonesAmount = retrieveMapKeysByValueExtended(listOfPhones, subscriber, phonebook);
+            int foundPhonesAmount = retrieveComplexMapValueByKeyExtended(listOfPhones, subscriber, notebook);
 
             if (foundPhonesAmount > 0) {
                 cout << "По ключу " << subscriber << " найдено " << foundPhonesAmount << " записей:" << endl;
@@ -262,19 +337,25 @@ void menuRetrieve(std::map<string, string> &phonebook) {
     }
 }
 
-void menuEdit(std::map<string, string> &phonebook) {
+void menuEdit(std::map<string, string> &phonebook, std::map<string, vector<string>> &notebook) {
     while (true) {
-        std::pair<string, string> newEntry;
-
         // Вообще исключаем введение неверных ключей
-        vector<string> keys;
-        keys.reserve(phonebook.size());
-        for (const auto &[key, value] : phonebook) keys.emplace_back(key);
+        vector<string> keys = getMapKeys(phonebook);
         cout << "Введите один из телефонов, который собираетесь редактировать:" << endl;
-        newEntry.first = keys[selectFromList(keys)];
-        newEntry.second = getUserLineString("Введите новую фамилию абонента");
+        string selectedPhone = keys[selectFromList(keys)];
+        string newName = getUserLineString("Введите новую фамилию абонента");
 
-        changeEntryInMapExtended(newEntry, phonebook);
+        string oldName;
+        // Извлекаем и сохраняем старое значение
+        bool isRetrieveSuccessfully = retrieveMapValueByKeyExtended(oldName, selectedPhone, phonebook);
+
+        bool isChangeSuccessfully = changeEntryInMapExtended(std::make_pair(selectedPhone, newName), phonebook);
+        // Если запись добавилась в phonebook, вносим изменения в параллельный список
+        if (isChangeSuccessfully && isRetrieveSuccessfully) {
+            std::pair<string, string> oldEntry(selectedPhone, oldName);
+            std::pair<string, string> newEntry(selectedPhone, newName);
+            changeEntryInComplexMap(oldEntry, newEntry, notebook);
+        }
 
         cout << "Закончили редактирование?" << endl;
         if (selectFromList({ "yes", "no" }) == 0) break;
@@ -285,7 +366,10 @@ int main() {
     SetConsoleCP(65001);
     SetConsoleOutputCP(65001);
 
+    // 123-34: Ivanov
     std::map<string, string> phonebook;
+    // Ivanov: { 123-34, 34-56 }
+    std::map<string, vector<string>> notebook;
 
     vector<string> commands = { "add", "edit", "remove", "retrieve", "about", "exit"};
     vector<string> commandsRu = {
@@ -304,25 +388,28 @@ int main() {
 
         if (commands[index] == "add") {
             cout << "MENU/ADD:" << endl;
-            menuAdd(phonebook);
+            menuAdd(phonebook, notebook);
         }
         else if (commands[index] == "edit") {
             cout << "MENU/EDIT:" << endl;
-            if (abortIfDataEmpty(opType::edit, phonebook)) continue;
-            menuEdit(phonebook);
+            if (abortIfDataEmpty(opType::edit, phonebook, notebook)) continue;
+            menuEdit(phonebook, notebook);
         }
         else if (commands[index] == "remove") {
             cout << "MENU/REMOVE:" << endl;
-            if (abortIfDataEmpty(opType::remove, phonebook)) continue;
-            menuRemove(phonebook);
+            if (abortIfDataEmpty(opType::remove, phonebook, notebook)) continue;
+            menuRemove(phonebook, notebook);
         }
         else if (commands[index] == "retrieve") {
             cout << "MENU/RETRIEVE:" << endl;
-            if (abortIfDataEmpty(opType::retrieve, phonebook)) continue;
-            menuRetrieve(phonebook);
+            if (abortIfDataEmpty(opType::retrieve, phonebook, notebook)) continue;
+            menuRetrieve(phonebook, notebook);
         }
         else if (commands[index] == "about") {
-            if (!phonebook.empty()) displayEntries(phonebook);
+            if (!phonebook.empty()) {
+                displayMap(phonebook);
+                displayComplexMap(notebook);
+            }
             else cout << "Телефонный справочник пока пуст" << endl;
         }
         else if (commands[index] == "exit") {
