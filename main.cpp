@@ -134,7 +134,7 @@ void removeEntryFromComplexMap(const std::pair<F, S> &entry, std::map<S, vector<
 
 // Вернуть одну запись. Возвращает false, если записи по указанному ключу не обнаружено
 template<typename F, typename S>
-bool retrieveMapValueByKey(S &target, const F &key, const std::map<F, S> &source) {
+bool retrieveValueByKeyFromMap(S &target, const F &key, const std::map<F, S> &source) {
     const auto it = source.find(key);
 
     if (it == source.end()) return false;
@@ -146,7 +146,7 @@ bool retrieveMapValueByKey(S &target, const F &key, const std::map<F, S> &source
 
 // Вернуть список значений по запрашиваемому значение. Возвращает количество обнаруженных совпадений
 template<typename F, typename S>
-int retrieveComplexMapValueByKey(vector<F> &target, const S &key, const std::map<S, vector<F>> &source) {
+int retrieveValuesByKeyFromComplexMap(vector<F> &target, const S &key, const std::map<S, vector<F>> &source) {
     int amount = 0;
     auto it = source.find(key);
 
@@ -205,38 +205,37 @@ void printLog(opType mode, bool status, const string &keyword, int itemsAmount =
     else printf(msg, operation.c_str(), keyword.c_str(), onFailure.c_str());
 }
 
-// Функции Extended аналогичны базовым прототипам, но имеют ещё логирование
 template<typename F, typename S>
-bool addEntryToMapExtend(const std::pair<F, S> &entry, std::map<F, S> &target) {
+bool addEntryToPhonebook(const std::pair<F, S> &entry, std::map<F, S> &target) {
     auto status = addEntryToMap(entry, target);
     printLog(opType::add, status, entry.first);
     return status;
 }
 
 template<typename F, typename S>
-bool changeEntryInMapExtended(const std::pair<F, S> &entry, std::map<F, S> &target) {
+bool changeEntryInPhonebook(const std::pair<F, S> &entry, std::map<F, S> &target) {
     auto status = changeEntryInMap(entry, target);
     printLog(opType::edit, status, entry.first);
     return status;
 }
 
 template<typename F, typename S>
-bool removeEntryFromMapExtended(const F &key, std::map<F, S> &target) {
+bool removeEntryFromPhonebook(const F &key, std::map<F, S> &target) {
     auto status = removeEntryFromMap(key, target);
     printLog(opType::remove, status, key);
     return status;
 }
 
 template<typename F, typename S>
-bool retrieveMapValueByKeyExtended(S &target, const F &key, const std::map<F, S> &source) {
-    auto status = retrieveMapValueByKey(target, key, source);
+bool retrieveValueByKeyFromPhonebook(S &target, const F &key, const std::map<F, S> &source) {
+    auto status = retrieveValueByKeyFromMap(target, key, source);
     printLog(opType::retrieve, status, key);
     return status;
 }
 
 template<typename F, typename S>
-int retrieveComplexMapValueByKeyExtended(vector<F> &target, const S &key, const std::map<S, vector<F>> &source) {
-    int itemsAmount = retrieveComplexMapValueByKey(target, key, source);
+int retrieveValuesByKeyFromNotebook(vector<F> &target, const S &key, const std::map<S, vector<F>> &source) {
+    int itemsAmount = retrieveValuesByKeyFromComplexMap(target, key, source);
     printLog(opType::retrieve, itemsAmount > 0, key, itemsAmount);
     return itemsAmount;
 }
@@ -264,7 +263,7 @@ void menuAdd(std::map<string, string> &phonebook, std::map<string, vector<string
         string newName = getUserLineString("Введите фамилию абонента");
         std::pair<string, string> newEntry(selectedPhone, newName);
 
-        bool isSuccess = addEntryToMapExtend(newEntry, phonebook);
+        bool isSuccess = addEntryToPhonebook(newEntry, phonebook);
         // Если запись добавилась, вносим изменения в параллельный список
         if (isSuccess) addEntryToComplexMap(newEntry, notebook);
 
@@ -282,9 +281,9 @@ void menuRemove(std::map<string, string> &phonebook, std::map<string, vector<str
 
         string oldName;
         // Извлекаем и сохраняем старое значение
-        bool isRetrieveSuccessfully = retrieveMapValueByKeyExtended(oldName, selectedPhone, phonebook);
+        bool isRetrieveSuccessfully = retrieveValueByKeyFromPhonebook(oldName, selectedPhone, phonebook);
 
-        bool isRemoveSuccess = removeEntryFromMapExtended(selectedPhone, phonebook);
+        bool isRemoveSuccess = removeEntryFromPhonebook(selectedPhone, phonebook);
         if (isRemoveSuccess && isRetrieveSuccessfully) {
             std::pair<string, string> oldEntry(selectedPhone, oldName);
             removeEntryFromComplexMap(oldEntry, notebook);
@@ -314,7 +313,7 @@ void menuRetrieve(std::map<string, string> &phonebook, std::map<string, vector<s
             string selectedKey = keys[selectFromList(keys)];
 
             string retrievedValue;
-            retrieveMapValueByKeyExtended(retrievedValue, selectedKey, phonebook);
+            retrieveValueByKeyFromPhonebook(retrievedValue, selectedKey, phonebook);
 
             cout << "Результат извлечения по телефону " << selectedKey << ": " << retrievedValue << endl;
 
@@ -324,7 +323,7 @@ void menuRetrieve(std::map<string, string> &phonebook, std::map<string, vector<s
             cout << "MENU/RETRIEVE/PHONES BY NAME:" << endl;
             vector<string> listOfPhones;
             string subscriber = getUserLineString("Введите фамилию абонента");
-            int foundPhonesAmount = retrieveComplexMapValueByKeyExtended(listOfPhones, subscriber, notebook);
+            int foundPhonesAmount = retrieveValuesByKeyFromNotebook(listOfPhones, subscriber, notebook);
 
             if (foundPhonesAmount > 0) {
                 cout << "По ключу " << subscriber << " найдено " << foundPhonesAmount << " записей:" << endl;
@@ -347,9 +346,9 @@ void menuEdit(std::map<string, string> &phonebook, std::map<string, vector<strin
 
         string oldName;
         // Извлекаем и сохраняем старое значение
-        bool isRetrieveSuccessfully = retrieveMapValueByKeyExtended(oldName, selectedPhone, phonebook);
+        bool isRetrieveSuccessfully = retrieveValueByKeyFromPhonebook(oldName, selectedPhone, phonebook);
 
-        bool isChangeSuccessfully = changeEntryInMapExtended(std::make_pair(selectedPhone, newName), phonebook);
+        bool isChangeSuccessfully = changeEntryInPhonebook(std::make_pair(selectedPhone, newName), phonebook);
         // Если запись добавилась в phonebook, вносим изменения в параллельный список
         if (isChangeSuccessfully && isRetrieveSuccessfully) {
             std::pair<string, string> oldEntry(selectedPhone, oldName);

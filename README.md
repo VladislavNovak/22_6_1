@@ -75,5 +75,7 @@ void changeEntryInComplexMap(const std::pair<F, S> &oldEntry, const std::pair<F,
     addEntryToComplexMap(newEntry, target);
 }
 ```
-Итогом работы будут функции `retrieveMapValueByKey` и `retrieveComplexMapValueByKey`, которые 
-выводят результат в соответствии с алгоритмом `O(logn)`
+Итогом работы будут функции 
+`retrieveValueByKeyFromMap` для phonebook и 
+`retrieveValuesByKeyFromComplexMap` для notebook, 
+которые выводят результат в соответствии с алгоритмом `O(logn)`
